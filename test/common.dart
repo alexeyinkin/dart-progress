@@ -1,5 +1,10 @@
 import 'package:progress/progress.dart';
 
+const count = 3;
+const delay = const Duration(milliseconds: 100);
+const expectedString = 'Complete!';
+const errorText = 'My custom error test';
+
 IntProgressFuture<String> runIntsWithProgress({
   required int count,
   required Duration delay,
@@ -24,7 +29,7 @@ Future<String> generateIntsWithProgress(
     await Future.delayed(delay);
   }
 
-  return 'Complete!';
+  return expectedString;
 }
 
 DataIntProgressFuture<String, String> runIntsWithProgressAndData({
@@ -52,7 +57,7 @@ Future<String> generateIntsWithProgressAndData(
     await Future.delayed(delay);
   }
 
-  return 'Complete!';
+  return expectedString;
 }
 
 DoubleProgressFuture<String> runDoublesWithProgress({
@@ -90,7 +95,7 @@ Future<String> generateDoublesWithProgress(
     await Future.delayed(delay);
   }
 
-  return 'Complete!';
+  return expectedString;
 }
 
 DataDoubleProgressFuture<String, String> runDoublesWithProgressAndData({
@@ -128,5 +133,9 @@ Future<String> generateDoublesWithProgressAndData(
     await Future.delayed(delay);
   }
 
-  return 'Complete!';
+  return expectedString;
+}
+
+extension DateTimeExtension on DateTime {
+  Duration operator -(DateTime other) => difference(other);
 }

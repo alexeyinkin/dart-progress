@@ -3,24 +3,35 @@ import 'dart:async';
 import 'package:async/async.dart';
 import 'package:clock/clock.dart';
 
-/// A [Future] that reports the progress of its completion as an integer.
+import 'util.dart';
+
+/// A [Future] that reports the progress of its completion
+/// as an integer.
 typedef IntProgressFuture<R> = ProgressFuture<R, int>;
 
 /// A sink for the code wrapped in [IntProgressFuture] to report
 /// its progress.
 typedef IntProgressUpdater = ProgressUpdater<int>;
 
-/// A [Future] that reports the progress of its completion as a double.
+/// A [Future] that reports the progress of its completion
+/// as a double.
 typedef DoubleProgressFuture<R> = ProgressFuture<R, double>;
 
 /// A sink for the code wrapped in [DoubleProgressFuture] to report
 /// its progress.
 typedef DoubleProgressUpdater = ProgressUpdater<double>;
 
-/// A [Future] that reports the progress of its completion.
+/// A [Future] that reports the progress
+/// of its completion.
 abstract class ProgressFuture<R, N extends num> implements Future<R> {
   /// The progress events.
   Stream<ProgressEvent<N>> get events;
+
+  /// Returns the current progress.
+  N get progress;
+
+  /// Returns the cap of the progress or `null` if it is unknown.
+  N? get total;
 
   /// Returns the progress as of the last fired event as a fraction of 1.
   double? get fraction;
@@ -29,20 +40,117 @@ abstract class ProgressFuture<R, N extends num> implements Future<R> {
   /// as fractions of 1.
   ProgressFuture<R, double> get fractions;
 
-  /// Wraps a regular [future] and listen to the progress reported by [updater].
+  /// Wraps a regular [future] and listens to the progress
+  /// reported by [updater].
   factory ProgressFuture.wrap(
     Future<R> future,
     ProgressUpdater<N> updater,
   ) =>
       _ProgressFutureImpl(future, updater);
+
+  /// Wraps a regular [future] and only reports its full completion.
+  ///
+  /// Use this constructor when you don't have the progress information
+  /// but still need to expose the interface of this class.
+  ///
+  /// Any listeners to the returned future will fire before any of the listeners
+  /// to the progress. This is because the progress event is itself sent
+  /// from a listener. To guarantee that the progress is reported before
+  /// the future completion, use [wrapDelayedWithoutProgress].
+  ///
+  /// [total] defaults to 1.
+  factory ProgressFuture.wrapWithoutProgress(
+    Future<R> future, {
+    N? total,
+  }) =>
+      ProgressFuture._wrapWithoutProgress(
+        future,
+        total: total ?? one<N>(),
+        delay: false,
+      );
+
+  /// Wraps a regular [future] and only reports its full completion.
+  ///
+  /// Use this constructor when you don't have the progress information
+  /// but still need to expose the interface of this class.
+  ///
+  /// A delay of zero is introduced after the completion of the original
+  /// [future] so that listeners to the progress fire before the listeners
+  /// of the returned future. If you don't need this, use [wrapWithoutProgress]
+  /// which does not delay.
+  ///
+  /// [total] defaults to 1.
+  factory ProgressFuture.wrapDelayedWithoutProgress(
+    Future<R> future, {
+    N? total,
+  }) =>
+      ProgressFuture._wrapWithoutProgress(
+        future,
+        total: total ?? one<N>(),
+        delay: true,
+      );
+
+  factory ProgressFuture._wrapWithoutProgress(
+    Future<R> future, {
+    required N total,
+    required bool delay,
+  }) {
+    final updater = ProgressUpdater<N>(total: total);
+
+    final wrapped = future.then((r) async {
+      updater.setProgress(total);
+      if (delay) {
+        await Future.delayed(Duration.zero);
+      }
+      return r;
+    });
+
+    return _ProgressFutureImpl(wrapped, updater);
+  }
+
+  factory ProgressFuture.value(R value) => _ProgressFutureImpl(
+        Future.value(value),
+        ProgressUpdater<N>(total: zero<N>()),
+      );
+
+  static ProgressFuture<List<R>, N> wait<R, N extends num>(
+    List<ProgressFuture<R, N>> futures,
+  ) {
+    final total = sumOrNull(futures.map((f) => f.total));
+    final updater = ProgressUpdater<N>(total: total);
+
+    for (final future in futures) {
+      future.events.listen((event) {
+        updater.total = sumOrNull(futures.map((f) => f.total));
+        updater.setProgress(
+          futures.map((f) => f.progress).reduce((a, b) => (a + b) as N),
+        );
+      });
+    }
+
+    return _ProgressFutureImpl(Future.wait(futures), updater);
+  }
+
+  @override
+  ProgressFuture<R2, N> then<R2>(
+    FutureOr<R2> onValue(R value), {
+    Function? onError,
+  });
 }
 
-/// A sink for the code wrapped in [ProgressFuture] to report its progress.
+/// A sink for the code wrapped in [ProgressFuture] to report
+/// its progress.
 class ProgressUpdater<N extends num> {
   final _listeners = <_ProgressListener>[];
   N? _total;
 
+  /// A sink for the code wrapped in [ProgressFuture] to report its progress
+  /// as a fraction of [total] which may or may not be defined initially.
   ProgressUpdater({N? total}) : _total = total;
+
+  /// A sink for the code wrapped in [ProgressFuture] to report its progress
+  /// as a fraction of one.
+  ProgressUpdater.normalized() : _total = one<N>();
 
   void _addListener(_ProgressListener<N> listener) {
     _listeners.add(listener);
@@ -55,8 +163,10 @@ class ProgressUpdater<N extends num> {
     }
   }
 
-  /// Sets the total value of which the reported progress is a fraction.
-  set total(N newValue) {
+  /// The total value of which the reported progress is a fraction.
+  N? get total => _total;
+
+  set total(N? newValue) {
     _total = newValue;
 
     for (final listener in _listeners) {
@@ -68,7 +178,7 @@ class ProgressUpdater<N extends num> {
 abstract class _ProgressListener<N extends num> {
   void setProgress(N progress);
 
-  set total(N newValue);
+  set total(N? newValue);
 }
 
 /// An event produced by changing the progress of [ProgressUpdater]
@@ -93,19 +203,34 @@ class _ProgressEventImpl<N extends num> implements ProgressEvent<N> {
 
 class _ProgressFutureImpl<R, N extends num> extends DelegatingFuture<R>
     implements ProgressFuture<R, N>, _ProgressListener<N> {
-  final _eventsController = StreamController<ProgressEvent<N>>.broadcast();
+  final StreamController<ProgressEvent<N>> _eventsController;
   N? _total;
   ProgressEvent<N>? _lastEvent;
   final ProgressUpdater<N> _updater;
 
   Stream<ProgressEvent<N>> get events => _eventsController.stream;
 
-  _ProgressFutureImpl(Future<R> future, this._updater)
-      : _total = _updater._total,
-        super(future) {
-    _updater._addListener(this);
-    future.whenComplete(_eventsController.close);
+  factory _ProgressFutureImpl(Future<R> future, ProgressUpdater<N> updater) {
+    final eventsController = StreamController<ProgressEvent<N>>.broadcast();
+    final result = _ProgressFutureImpl._(future, updater, eventsController);
+
+    // Sync because of the bug: https://github.com/dart-lang/sdk/issues/56806
+    future.whenComplete(() {
+      eventsController.close();
+    }).ignore();
+    return result;
   }
+
+  _ProgressFutureImpl._(super.future, this._updater, this._eventsController)
+      : _total = _updater.total {
+    _updater._addListener(this);
+  }
+
+  @override
+  N get progress => _lastEvent?.progress ?? zero<N>();
+
+  @override
+  N? get total => _total;
 
   @override
   double? get fraction {
@@ -126,7 +251,7 @@ class _ProgressFutureImpl<R, N extends num> extends DelegatingFuture<R>
       }
       updater.setProgress(fraction);
     });
-    return ProgressFuture.wrap(this, updater);
+    return _ProgressFutureImpl(this, updater);
   }
 
   @override
@@ -139,7 +264,18 @@ class _ProgressFutureImpl<R, N extends num> extends DelegatingFuture<R>
     _lastEvent = event;
   }
 
-  set total(N newValue) {
+  set total(N? newValue) {
     _total = newValue;
+  }
+
+  @override
+  ProgressFuture<R2, N> then<R2>(
+    FutureOr<R2> onValue(R value), {
+    Function? onError,
+  }) {
+    return _ProgressFutureImpl(
+      super.then(onValue, onError: onError),
+      _updater,
+    );
   }
 }

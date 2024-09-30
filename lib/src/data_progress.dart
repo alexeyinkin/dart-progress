@@ -4,25 +4,26 @@ import 'package:async/async.dart';
 import 'package:clock/clock.dart';
 
 import 'progress.dart';
+import 'util.dart';
 
-/// A [Future] that reports the progress of its completion as an integer
-/// and intermediate data.
+/// A [Future] that reports the progress of its completion
+/// as an integer and intermediate data.
 typedef DataIntProgressFuture<R, D> = DataProgressFuture<R, int, D>;
 
 /// A sink for the code wrapped in [DataIntProgressFuture] to report
 /// its progress.
 typedef DataIntProgressUpdater<D> = DataProgressUpdater<int, D>;
 
-/// A [Future] that reports the progress of its completion as a double
-/// and intermediate data.
+/// A [Future] that reports the progress of its completion
+/// as a double and intermediate data.
 typedef DataDoubleProgressFuture<R, D> = DataProgressFuture<R, double, D>;
 
 /// A sink for the code wrapped in [DoubleProgressFuture] to report
 /// its progress and intermediate data.
 typedef DataDoubleProgressUpdater<D> = DataProgressUpdater<double, D>;
 
-/// A [Future] that reports the progress of its completion
-/// and intermediate data.
+/// A [Future] that reports the progress
+/// of its completion and intermediate data.
 abstract class DataProgressFuture<R, N extends num, D>
     implements ProgressFuture<R, N> {
   @override
@@ -31,22 +32,34 @@ abstract class DataProgressFuture<R, N extends num, D>
   @override
   DataProgressFuture<R, double, D> get fractions;
 
-  /// Wraps a regular [future] and listen to the progress and intermediate data
-  /// reported by [updater].
+  /// Wraps a regular [future] and listens to the progress
+  /// and intermediate data reported by [updater].
   factory DataProgressFuture.wrap(
     Future<R> future,
     DataProgressUpdater<N, D> updater,
   ) =>
       _DataProgressFutureImpl(future, updater);
+
+  @override
+  DataProgressFuture<R2, N, D> then<R2>(
+    FutureOr<R2> onValue(R value), {
+    Function? onError,
+  });
 }
 
-/// A sink for the code wrapped in [DataProgressFuture] to report its progress
-/// and intermediate data.
+/// A sink for the code wrapped in [DataProgressFuture] to report
+/// its progress and intermediate data.
 class DataProgressUpdater<N extends num, D> {
   final _listeners = <_ProgressListener>[];
   N? _total;
 
+  /// A sink for the code wrapped in [DataProgressFuture] to report its progress
+  /// as a fraction of [total] and intermediate data.
   DataProgressUpdater({N? total}) : _total = total;
+
+  /// A sink for the code wrapped in [DataProgressFuture] to report its progress
+  /// as a fraction of one and intermediate data.
+  DataProgressUpdater.normalized() : _total = one<N>();
 
   void _addListener(_ProgressListener<N, D> listener) {
     _listeners.add(listener);
@@ -59,8 +72,10 @@ class DataProgressUpdater<N extends num, D> {
     }
   }
 
-  /// Sets the total value of which the reported progress is a fraction.
-  set total(N newValue) {
+  /// The total value of which the reported progress is a fraction.
+  N? get total => _total;
+
+  set total(N? newValue) {
     _total = newValue;
 
     for (final listener in _listeners) {
@@ -72,7 +87,7 @@ class DataProgressUpdater<N extends num, D> {
 abstract class _ProgressListener<N extends num, D> {
   void setProgress(N progress, D data);
 
-  set total(N newValue);
+  set total(N? newValue);
 }
 
 /// An event produced by changing the progress of [DataProgressUpdater]
@@ -98,20 +113,38 @@ class _DataProgressEventImpl<N extends num, D>
 
 class _DataProgressFutureImpl<R, N extends num, D> extends DelegatingFuture<R>
     implements DataProgressFuture<R, N, D>, _ProgressListener<N, D> {
-  final _eventsController =
-      StreamController<DataProgressEvent<N, D>>.broadcast();
+  final StreamController<DataProgressEvent<N, D>> _eventsController;
   N? _total;
   DataProgressEvent<N, D>? _lastEvent;
   final DataProgressUpdater<N, D> _updater;
 
   Stream<DataProgressEvent<N, D>> get events => _eventsController.stream;
 
-  _DataProgressFutureImpl(Future<R> future, this._updater)
-      : _total = _updater._total,
-        super(future) {
-    _updater._addListener(this);
-    future.whenComplete(_eventsController.close);
+  factory _DataProgressFutureImpl(
+    Future<R> future,
+    DataProgressUpdater<N, D> updater,
+  ) {
+    final eventsController =
+        StreamController<DataProgressEvent<N, D>>.broadcast();
+    final result = _DataProgressFutureImpl._(future, updater, eventsController);
+
+    // Sync because of the bug: https://github.com/dart-lang/sdk/issues/56806
+    future.whenComplete(() {
+      eventsController.close();
+    }).ignore();
+    return result;
   }
+
+  _DataProgressFutureImpl._(super.future, this._updater, this._eventsController)
+      : _total = _updater.total {
+    _updater._addListener(this);
+  }
+
+  @override
+  N get progress => _lastEvent?.progress ?? zero<N>();
+
+  @override
+  N? get total => _total;
 
   @override
   double? get fraction {
@@ -145,7 +178,18 @@ class _DataProgressFutureImpl<R, N extends num, D> extends DelegatingFuture<R>
     _lastEvent = event;
   }
 
-  set total(N newValue) {
+  set total(N? newValue) {
     _total = newValue;
+  }
+
+  @override
+  DataProgressFuture<R2, N, D> then<R2>(
+    FutureOr<R2> onValue(R value), {
+    Function? onError,
+  }) {
+    return DataProgressFuture.wrap(
+      super.then(onValue, onError: onError),
+      _updater,
+    );
   }
 }

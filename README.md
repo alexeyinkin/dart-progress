@@ -24,14 +24,14 @@ Future<void> main() async {
 
 IntProgressFuture<String> wait(int seconds) {
   final updater = IntProgressUpdater(total: seconds);
-  final wrapped = (int seconds) async {
+  final generate = (int seconds) async {
     for (int n = 0; n < seconds; n++) {
       updater.setProgress(n);
       await Future.delayed(const Duration(seconds: 1));
     }
     return 'Waited $seconds seconds.';
   };
-  return IntProgressFuture.wrap(wrapped(seconds), updater);
+  return IntProgressFuture.wrap(generate(seconds), updater);
 }
 ```
 
@@ -47,6 +47,9 @@ Waited 5 seconds.
 ### Tracking progress as a double value
 
 Use `DoubleProgressUpdater` and `DoubleProgressFuture` if your progress measures as `double` and not `int`.
+
+If your progress is from 0 to 1, use `DoubleProgressUpdater.normalized()` convenience constructor.
+It's also defined for `IntProgressUpdater` but makes less sense there.
 
 ### Tracking intermediate data in addition to the progress
 
@@ -75,7 +78,7 @@ DataDoubleProgressFuture<String, Duration> waitWithEta(Duration duration) {
     total: duration.inMicroseconds / Duration.microsecondsPerSecond,
   );
 
-  final wrapped = (Duration duration) async {
+  final generate = (Duration duration) async {
     final start = clock.now();
     final end = start.add(duration);
 
@@ -96,7 +99,7 @@ DataDoubleProgressFuture<String, Duration> waitWithEta(Duration duration) {
     }
     return 'Waited for $duration.';
   };
-  return DataDoubleProgressFuture.wrap(wrapped(duration), updater);
+  return DataDoubleProgressFuture.wrap(generate(duration), updater);
 }
 ```
 
@@ -118,6 +121,17 @@ Use cases for this include:
 - Reporting the ETA if it's non-linear and the client can't just extrapolate the elapsed time.
 - Reporting intermediate values if you compute some value in iterations.
 
+### Wrapping a Future without progress
+
+Sometimes you don't have a progress information but still need to return `ProgressFuture`
+from your method to maintain a consistent API.
+
+In this case, use `ProgressFuture.wrapWithoutProgress(future)` constructor.
+
+### Wrapping a synchronous value
+
+Use `ProgressFuture.value(value)`.
+
 ## Printing the progress
 
 ### Printing dots
@@ -133,14 +147,14 @@ Future<void> main() async {
 
 IntProgressFuture<String> wait(int count) {
   final updater = IntProgressUpdater(total: count);
-  final wrapped = (int count) async {
+  final generate = (int count) async {
     for (int n = 0; n < count; n++) {
       updater.setProgress(n);
       await Future.delayed(const Duration(milliseconds: 200));
     }
     return 'Done.';
   };
-  return IntProgressFuture.wrap(wrapped(count), updater);
+  return IntProgressFuture.wrap(generate(count), updater);
 }
 ```
 
