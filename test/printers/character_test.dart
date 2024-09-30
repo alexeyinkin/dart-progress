@@ -1,5 +1,5 @@
 import 'package:print_buffer/print_buffer.dart';
-import 'package:progress/printers.dart';
+import 'package:progress_future/printers.dart';
 import 'package:test/test.dart';
 
 import '../common.dart';

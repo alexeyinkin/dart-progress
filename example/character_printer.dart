@@ -1,5 +1,5 @@
-import 'package:progress/printers.dart';
-import 'package:progress/progress.dart';
+import 'package:progress_future/printers.dart';
+import 'package:progress_future/progress_future.dart';
 
 Future<void> main() async {
   final future = wait(20);

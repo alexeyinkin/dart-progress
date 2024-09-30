@@ -1,4 +1,4 @@
-import 'package:progress/progress.dart';
+import 'package:progress_future/progress_future.dart';
 
 const count = 3;
 const delay = const Duration(milliseconds: 100);

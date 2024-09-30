@@ -61,7 +61,7 @@ For this, use
 
 ```dart
 import 'package:clock/clock.dart';
-import 'package:progress/progress.dart';
+import 'package:progress_future/progress_future.dart';
 
 Future<void> main() async {
   final future = waitWithEta(Duration(seconds: 5));

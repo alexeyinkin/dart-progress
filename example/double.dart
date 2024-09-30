@@ -1,5 +1,5 @@
 import 'package:clock/clock.dart';
-import 'package:progress/progress.dart';
+import 'package:progress_future/progress_future.dart';
 
 Future<void> main() async {
   // Double progress with additional data:

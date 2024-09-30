@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:matching/matching.dart';
-import 'package:progress/progress.dart';
+import 'package:progress_future/progress_future.dart';
 import 'package:test/test.dart';
 
 import '../common.dart';
