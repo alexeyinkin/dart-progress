@@ -11,12 +11,10 @@ void main() {
     group('intercepts errors of the wrapped future', () {
       test('wrap', () async {
         final updater = ProgressUpdater();
-        ProgressFuture.wrap(
+        await ProgressFuture.wrap(
           Future<void>.delayed(Duration.zero, () => throw Exception()),
           updater,
         ).onError((e, st) => null);
-
-        await Future.delayed(Duration.zero);
       });
     });
 
@@ -48,9 +46,7 @@ void main() {
       );
       final fractionsFuture = future.fractions;
 
-      fractionsFuture.events.listen((event) {
-        events.add(event);
-      });
+      fractionsFuture.events.listen(events.add);
 
       await future;
 

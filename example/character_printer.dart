@@ -9,12 +9,15 @@ Future<void> main() async {
 
 IntProgressFuture<String> wait(int count) {
   final updater = IntProgressUpdater(total: count);
-  final generate = (int count) async {
+
+  Future<String> generate(int count) async {
     for (int n = 0; n < count; n++) {
       updater.setProgress(n);
       await Future.delayed(const Duration(milliseconds: 200));
     }
+
     return 'Done.';
-  };
+  }
+
   return IntProgressFuture.wrap(generate(count), updater);
 }

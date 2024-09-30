@@ -13,12 +13,15 @@ Future<void> main() async {
 
 IntProgressFuture<String> wait(int seconds) {
   final updater = IntProgressUpdater(total: seconds);
-  final generate = (int seconds) async {
+
+  Future<String> generate(int seconds) async {
     for (int n = 0; n < seconds; n++) {
       updater.setProgress(n);
       await Future.delayed(const Duration(seconds: 1));
     }
+
     return 'Waited $seconds seconds.';
-  };
+  }
+
   return IntProgressFuture.wrap(generate(seconds), updater);
 }

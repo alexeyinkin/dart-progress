@@ -78,7 +78,7 @@ DataDoubleProgressFuture<String, Duration> waitWithEta(Duration duration) {
     total: duration.inMicroseconds / Duration.microsecondsPerSecond,
   );
 
-  final generate = (Duration duration) async {
+  Future<String> generate(Duration duration) async {
     final start = clock.now();
     final end = start.add(duration);
 
@@ -97,8 +97,10 @@ DataDoubleProgressFuture<String, Duration> waitWithEta(Duration duration) {
       updater.setProgress(secondsElapsed, left);
       await Future.delayed(const Duration(milliseconds: 500));
     }
+
     return 'Waited for $duration.';
-  };
+  }
+
   return DataDoubleProgressFuture.wrap(generate(duration), updater);
 }
 ```
@@ -147,13 +149,16 @@ Future<void> main() async {
 
 IntProgressFuture<String> wait(int count) {
   final updater = IntProgressUpdater(total: count);
-  final generate = (int count) async {
+
+  Future<String> generate(int count) async {
     for (int n = 0; n < count; n++) {
       updater.setProgress(n);
       await Future.delayed(const Duration(milliseconds: 200));
     }
+
     return 'Done.';
-  };
+  }
+
   return IntProgressFuture.wrap(generate(count), updater);
 }
 ```

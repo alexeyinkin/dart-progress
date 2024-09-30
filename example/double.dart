@@ -3,7 +3,7 @@ import 'package:progress_future/progress_future.dart';
 
 Future<void> main() async {
   // Double progress with additional data:
-  final future = waitWithEta(Duration(seconds: 5));
+  final future = waitWithEta(const Duration(seconds: 5));
 
   future.events.listen((event) {
     print('${event.progress} seconds elapsed, ${event.data} left.');
@@ -17,7 +17,7 @@ DataDoubleProgressFuture<String, Duration> waitWithEta(Duration duration) {
     total: duration.inMicroseconds / Duration.microsecondsPerSecond,
   );
 
-  final wrapped = (Duration duration) async {
+  Future<String> generate(Duration duration) async {
     final start = clock.now();
     final end = start.add(duration);
 
@@ -36,7 +36,9 @@ DataDoubleProgressFuture<String, Duration> waitWithEta(Duration duration) {
       updater.setProgress(secondsElapsed, left);
       await Future.delayed(const Duration(milliseconds: 500));
     }
+
     return 'Waited for $duration.';
-  };
-  return DataDoubleProgressFuture.wrap(wrapped(duration), updater);
+  }
+
+  return DataDoubleProgressFuture.wrap(generate(duration), updater);
 }

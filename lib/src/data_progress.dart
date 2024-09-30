@@ -42,7 +42,7 @@ abstract class DataProgressFuture<R, N extends num, D>
 
   @override
   DataProgressFuture<R2, N, D> then<R2>(
-    FutureOr<R2> onValue(R value), {
+    FutureOr<R2> Function(R value) onValue, {
     Function? onError,
   });
 }
@@ -87,6 +87,8 @@ class DataProgressUpdater<N extends num, D> {
 abstract class _ProgressListener<N extends num, D> {
   void setProgress(N progress, D data);
 
+  N? get total;
+
   set total(N? newValue);
 }
 
@@ -118,6 +120,7 @@ class _DataProgressFutureImpl<R, N extends num, D> extends DelegatingFuture<R>
   DataProgressEvent<N, D>? _lastEvent;
   final DataProgressUpdater<N, D> _updater;
 
+  @override
   Stream<DataProgressEvent<N, D>> get events => _eventsController.stream;
 
   factory _DataProgressFutureImpl(
@@ -128,15 +131,19 @@ class _DataProgressFutureImpl<R, N extends num, D> extends DelegatingFuture<R>
         StreamController<DataProgressEvent<N, D>>.broadcast();
     final result = _DataProgressFutureImpl._(future, updater, eventsController);
 
-    // Sync because of the bug: https://github.com/dart-lang/sdk/issues/56806
+    // ignore: discarded_futures
     future.whenComplete(() {
-      eventsController.close();
+      // Sync because of the bug: https://github.com/dart-lang/sdk/issues/56806
+      unawaited(eventsController.close());
     }).ignore();
     return result;
   }
 
-  _DataProgressFutureImpl._(super.future, this._updater, this._eventsController)
-      : _total = _updater.total {
+  _DataProgressFutureImpl._(
+    super._future,
+    this._updater,
+    this._eventsController,
+  ) : _total = _updater.total {
     _updater._addListener(this);
   }
 
@@ -178,18 +185,18 @@ class _DataProgressFutureImpl<R, N extends num, D> extends DelegatingFuture<R>
     _lastEvent = event;
   }
 
+  @override
   set total(N? newValue) {
     _total = newValue;
   }
 
   @override
   DataProgressFuture<R2, N, D> then<R2>(
-    FutureOr<R2> onValue(R value), {
+    FutureOr<R2> Function(R value) onValue, {
     Function? onError,
   }) {
-    return DataProgressFuture.wrap(
-      super.then(onValue, onError: onError),
-      _updater,
-    );
+    // ignore: discarded_futures
+    final future = super.then(onValue, onError: onError);
+    return DataProgressFuture<R2, N, D>.wrap(future, _updater);
   }
 }

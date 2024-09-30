@@ -62,9 +62,7 @@ void main() {
           final DataDoubleProgressFuture<int, String> chained =
               future.then((result) => events.length + expectedString.length);
 
-          chained.events.listen((event) {
-            events.add(event);
-          });
+          chained.events.listen(events.add);
 
           final result = await chained;
           expect(result, count + expectedString.length);

@@ -1,7 +1,7 @@
 import 'package:progress_future/progress_future.dart';
 
 const count = 3;
-const delay = const Duration(milliseconds: 100);
+const delay = Duration(milliseconds: 100);
 const expectedString = 'Complete!';
 const errorText = 'My custom error test';
 
@@ -10,7 +10,10 @@ IntProgressFuture<String> runIntsWithProgress({
   required Duration delay,
 }) {
   final updater = IntProgressUpdater();
+
+  // ignore: discarded_futures
   final wrapped = generateIntsWithProgress(updater, count: count, delay: delay);
+
   return IntProgressFuture.wrap(wrapped, updater);
 }
 
@@ -37,8 +40,14 @@ DataIntProgressFuture<String, String> runIntsWithProgressAndData({
   required Duration delay,
 }) {
   final updater = DataIntProgressUpdater<String>();
-  final wrapped =
-      generateIntsWithProgressAndData(updater, count: count, delay: delay);
+
+  // ignore: discarded_futures
+  final wrapped = generateIntsWithProgressAndData(
+    updater,
+    count: count,
+    delay: delay,
+  );
+
   return DataIntProgressFuture.wrap(wrapped, updater);
 }
 
@@ -66,12 +75,15 @@ DoubleProgressFuture<String> runDoublesWithProgress({
   required double increment,
 }) {
   final updater = DoubleProgressUpdater();
+
+  // ignore: discarded_futures
   final wrapped = generateDoublesWithProgress(
     updater,
     count: count,
     delay: delay,
     increment: increment,
   );
+
   return DoubleProgressFuture.wrap(wrapped, updater);
 }
 
@@ -83,7 +95,7 @@ Future<String> generateDoublesWithProgress(
 }) async {
   await Future.delayed(Duration.zero); // To let a client set a listener.
 
-  double value = 1.0;
+  double value = 1;
   updater.setProgress(value);
   await Future.delayed(Duration.zero); // To read fraction before setting total.
 
@@ -104,12 +116,15 @@ DataDoubleProgressFuture<String, String> runDoublesWithProgressAndData({
   required double increment,
 }) {
   final updater = DataDoubleProgressUpdater<String>();
+
+  // ignore: discarded_futures
   final wrapped = generateDoublesWithProgressAndData(
     updater,
     count: count,
     delay: delay,
     increment: increment,
   );
+
   return DataDoubleProgressFuture.wrap(wrapped, updater);
 }
 
@@ -121,7 +136,7 @@ Future<String> generateDoublesWithProgressAndData(
 }) async {
   await Future.delayed(Duration.zero); // To let a client set a listener.
 
-  double value = 1.0;
+  double value = 1;
   updater.setProgress(value, '$value');
   await Future.delayed(Duration.zero); // To read fraction before setting total.
 

@@ -50,9 +50,7 @@ void main() {
           final IntProgressFuture<int> chained =
               future.then((result) => events.length + expectedString.length);
 
-          chained.events.listen((event) {
-            events.add(event);
-          });
+          chained.events.listen(events.add);
 
           final result = await chained;
           expect(result, count + expectedString.length);
@@ -95,9 +93,7 @@ void main() {
         final regular = Future.delayed(delay, () => expectedString);
         final future = IntProgressFuture.wrapWithoutProgress(regular);
 
-        future.events.listen((event) {
-          events.add(event);
-        });
+        future.events.listen(events.add);
 
         final result = await future;
 
@@ -119,9 +115,7 @@ void main() {
           total: 7,
         );
 
-        future.events.listen((event) {
-          events.add(event);
-        });
+        future.events.listen(events.add);
 
         final result = await future;
 
@@ -142,9 +136,7 @@ void main() {
         final regular = Future.delayed(delay, () => expectedString);
         final future = IntProgressFuture.wrapDelayedWithoutProgress(regular);
 
-        future.events.listen((event) {
-          events.add(event);
-        });
+        future.events.listen(events.add);
 
         final result = await future;
 
@@ -162,9 +154,7 @@ void main() {
           total: 7,
         );
 
-        future.events.listen((event) {
-          events.add(event);
-        });
+        future.events.listen(events.add);
 
         final result = await future;
 
@@ -204,9 +194,7 @@ void main() {
         runIntsWithProgress(count: count, delay: delay),
       ]);
 
-      future.events.listen((event) {
-        events.add(event);
-      });
+      future.events.listen(events.add);
 
       final result = await future;
 

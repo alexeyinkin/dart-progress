@@ -8,12 +8,13 @@ class CharacterProgressPrinter<N extends num> {
   final ProgressFuture<Object?, N> future;
 
   /// The callback to produce a character or a string instead of the default dot
-  /// for [event].
+  /// for event.
   final String? Function(ProgressEvent<N> event)? eventToString;
 
   /// Whether to add a newline character when the future completes.
   final bool newline;
 
+  /// Prints a character or string for each event. A dot is the default.
   CharacterProgressPrinter(
     this.future, {
     this.eventToString,

@@ -56,7 +56,7 @@ abstract class ProgressFuture<R, N extends num> implements Future<R> {
   /// Any listeners to the returned future will fire before any of the listeners
   /// to the progress. This is because the progress event is itself sent
   /// from a listener. To guarantee that the progress is reported before
-  /// the future completion, use [wrapDelayedWithoutProgress].
+  /// the future completion, use [ProgressFuture.wrapDelayedWithoutProgress].
   ///
   /// [total] defaults to 1.
   factory ProgressFuture.wrapWithoutProgress(
@@ -76,8 +76,8 @@ abstract class ProgressFuture<R, N extends num> implements Future<R> {
   ///
   /// A delay of zero is introduced after the completion of the original
   /// [future] so that listeners to the progress fire before the listeners
-  /// of the returned future. If you don't need this, use [wrapWithoutProgress]
-  /// which does not delay.
+  /// of the returned future. If you don't need this,
+  /// use [ProgressFuture.wrapWithoutProgress] which does not delay.
   ///
   /// [total] defaults to 1.
   factory ProgressFuture.wrapDelayedWithoutProgress(
@@ -97,6 +97,7 @@ abstract class ProgressFuture<R, N extends num> implements Future<R> {
   }) {
     final updater = ProgressUpdater<N>(total: total);
 
+    // ignore: discarded_futures
     final wrapped = future.then((r) async {
       updater.setProgress(total);
       if (delay) {
@@ -108,11 +109,13 @@ abstract class ProgressFuture<R, N extends num> implements Future<R> {
     return _ProgressFutureImpl(wrapped, updater);
   }
 
+  /// Creates a future that is resolved with [value].
   factory ProgressFuture.value(R value) => _ProgressFutureImpl(
         Future.value(value),
         ProgressUpdater<N>(total: zero<N>()),
       );
 
+  /// Waits until all [futures] complete.
   static ProgressFuture<List<R>, N> wait<R, N extends num>(
     List<ProgressFuture<R, N>> futures,
   ) {
@@ -128,12 +131,13 @@ abstract class ProgressFuture<R, N extends num> implements Future<R> {
       });
     }
 
+    // ignore: discarded_futures
     return _ProgressFutureImpl(Future.wait(futures), updater);
   }
 
   @override
   ProgressFuture<R2, N> then<R2>(
-    FutureOr<R2> onValue(R value), {
+    FutureOr<R2> Function(R value) onValue, {
     Function? onError,
   });
 }
@@ -178,6 +182,8 @@ class ProgressUpdater<N extends num> {
 abstract class _ProgressListener<N extends num> {
   void setProgress(N progress);
 
+  N? get total;
+
   set total(N? newValue);
 }
 
@@ -208,21 +214,26 @@ class _ProgressFutureImpl<R, N extends num> extends DelegatingFuture<R>
   ProgressEvent<N>? _lastEvent;
   final ProgressUpdater<N> _updater;
 
+  @override
   Stream<ProgressEvent<N>> get events => _eventsController.stream;
 
   factory _ProgressFutureImpl(Future<R> future, ProgressUpdater<N> updater) {
     final eventsController = StreamController<ProgressEvent<N>>.broadcast();
     final result = _ProgressFutureImpl._(future, updater, eventsController);
 
-    // Sync because of the bug: https://github.com/dart-lang/sdk/issues/56806
+    // ignore: discarded_futures
     future.whenComplete(() {
-      eventsController.close();
+      // Sync because of the bug: https://github.com/dart-lang/sdk/issues/56806
+      unawaited(eventsController.close());
     }).ignore();
     return result;
   }
 
-  _ProgressFutureImpl._(super.future, this._updater, this._eventsController)
-      : _total = _updater.total {
+  _ProgressFutureImpl._(
+    super._future,
+    this._updater,
+    this._eventsController,
+  ) : _total = _updater.total {
     _updater._addListener(this);
   }
 
@@ -264,18 +275,18 @@ class _ProgressFutureImpl<R, N extends num> extends DelegatingFuture<R>
     _lastEvent = event;
   }
 
+  @override
   set total(N? newValue) {
     _total = newValue;
   }
 
   @override
   ProgressFuture<R2, N> then<R2>(
-    FutureOr<R2> onValue(R value), {
+    FutureOr<R2> Function(R value) onValue, {
     Function? onError,
   }) {
-    return _ProgressFutureImpl(
-      super.then(onValue, onError: onError),
-      _updater,
-    );
+    // ignore: discarded_futures
+    final future = super.then(onValue, onError: onError);
+    return _ProgressFutureImpl(future, _updater);
   }
 }
